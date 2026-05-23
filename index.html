@@ -29,19 +29,13 @@
             margin-bottom: 20px;
             color: #ff6b6b;
         }
-        .status-box {
-            font-size: 20px;
+        .offline-message {
+            font-size: 24px;
+            line-height: 1.5;
             margin: 30px 0;
             padding: 20px;
-            border-radius: 10px;
-        }
-        .offline {
             background: rgba(255,107,107,0.2);
-            border: 1px solid #ff6b6b;
-        }
-        .online {
-            background: rgba(76, 175, 80, 0.2);
-            border: 1px solid #4CAF50;
+            border-radius: 10px;
         }
         .schedule {
             font-size: 18px;
@@ -53,26 +47,30 @@
             font-size: 14px;
             opacity: 0.7;
         }
-        .button {
+        .live-button {
             display: inline-block;
             margin-top: 20px;
-            padding: 12px 30px;
+            padding: 15px 40px;
             background: #4CAF50;
             color: white;
             text-decoration: none;
-            border-radius: 25px;
+            border-radius: 50px;
             font-weight: bold;
-            animation: pulse 1.5s infinite;
+            font-size: 20px;
+            animation: pulse 2s infinite;
         }
         @keyframes pulse {
             0% { transform: scale(1); }
             50% { transform: scale(1.05); background: #45a049; }
             100% { transform: scale(1); }
         }
-        .redirect-message {
+        .checking {
             margin-top: 20px;
             font-size: 14px;
             opacity: 0.8;
+        }
+        iframe {
+            display: none;
         }
     </style>
 </head>
@@ -80,67 +78,138 @@
     <div class="container">
         <h1>📻 98.Z HOSUR FM</h1>
         
-        <!-- This div will show content based on status -->
-        <div id="statusContent">
-            <div class="status-box offline" id="offlineBox">
+        <!-- Hide this section when online -->
+        <div id="offlineSection">
+            <div class="offline-message">
                 <strong>🔴 Hosur FM is Offline Now</strong><br><br>
                 Will be available on<br>
                 <strong style="font-size: 28px;">Sunday 09:00 PM to 10:00 PM</strong><br>
                 only.
             </div>
-            <div class="redirect-message" id="redirectMsg">
-                ⏳ Checking broadcast status...
-            </div>
+        </div>
+        
+        <!-- Show this section when online -->
+        <div id="onlineSection" style="display: none;">
+            <a href="#" id="liveLink" class="live-button" target="_top">
+                🎧 LISTEN LIVE NOW
+            </a>
         </div>
         
         <div class="schedule">
             ⏰ Thank you for your support!<br>
             Keep listening! 🎵
         </div>
+        <div class="checking" id="checkingMsg">
+            ⏳ Checking broadcast status...
+        </div>
         <div class="footer">
             Developed by @zabi
         </div>
     </div>
 
+    <!-- Hidden iframe for checking - this is the trick! -->
+    <iframe id="checkFrame" style="display: none;"></iframe>
+
     <script>
-        // Your NPort link
+        // UPDATE THIS URL EVERY SUNDAY BEFORE BROADCAST
         const RADIO_URL = 'https://draws-programme-veterans-invisible.trycloudflare.com/listener/';
         
-        // Function to check if the radio is online
-        async function checkRadioStatus() {
-            const offlineBox = document.getElementById('offlineBox');
-            const redirectMsg = document.getElementById('redirectMsg');
+        let checkComplete = false;
+        
+        // Method 1: Try to load an image from the server
+        function checkWithImage() {
+            const img = new Image();
+            const timeout = setTimeout(() => {
+                // Image failed to load - server is offline
+                if (!checkComplete) {
+                    showOffline();
+                    checkComplete = true;
+                }
+            }, 5000);
             
+            img.onload = function() {
+                // Image loaded - server is online!
+                clearTimeout(timeout);
+                if (!checkComplete) {
+                    showOnline();
+                    checkComplete = true;
+                }
+            };
+            
+            img.onerror = function() {
+                // Image failed - server is offline
+                clearTimeout(timeout);
+                if (!checkComplete) {
+                    showOffline();
+                    checkComplete = true;
+                }
+            };
+            
+            // Try to load a tiny image from the server
+            // Add a cache-busting timestamp to prevent caching
+            img.src = RADIO_URL.replace('/listener/', '/static/favicon.ico') + '?t=' + Date.now();
+            // If favicon doesn't exist, try the main page
+            if (!img.src.includes('favicon')) {
+                img.src = RADIO_URL + '?t=' + Date.now();
+            }
+        }
+        
+        // Method 2: Alternative - try to fetch with proper error handling
+        async function checkWithFetch() {
             try {
-                // Try to fetch the radio URL with a timeout
+                // Use no-cors but with a catch for network errors
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+                const timeoutId = setTimeout(() => controller.abort(), 3000);
                 
-                const response = await fetch(RADIO_URL, {
-                    method: 'HEAD', // Only get headers, not full page
-                    mode: 'no-cors', // Avoid CORS issues
+                // This will throw a network error if server is completely unreachable
+                await fetch(RADIO_URL, {
+                    method: 'GET',
+                    mode: 'no-cors',
+                    cache: 'no-cache',
                     signal: controller.signal
                 });
                 
                 clearTimeout(timeoutId);
+                // In no-cors mode, we can't see the response status
+                // So we need to try a different approach
+                showOnline();
                 
-                // If we get here without error, the server is reachable
-                // Redirect to the radio page
-                redirectMsg.innerHTML = '✅ Broadcast is LIVE! Redirecting you now...';
-                setTimeout(() => {
-                    window.location.href = RADIO_URL;
-                }, 1000);
-                
-            } catch (error) {
-                // Server is offline - show offline message
-                offlineBox.style.display = 'block';
-                redirectMsg.innerHTML = '🔴 Radio is currently offline. Please check back during broadcast hours.';
-                console.log('Radio is offline:', error);
+            } catch (networkError) {
+                // Network error means server is offline
+                showOffline();
             }
         }
         
+        function showOnline() {
+            document.getElementById('offlineSection').style.display = 'none';
+            document.getElementById('onlineSection').style.display = 'block';
+            document.getElementById('checkingMsg').innerHTML = '✅ Broadcast is LIVE! Click the button to listen.';
+            
+            // Set the actual link
+            document.getElementById('liveLink').href = RADIO_URL;
+            
+            // Optional: Auto-redirect after 2 seconds
+            setTimeout(() => {
+                window.location.href = RADIO_URL;
+            }, 2000);
+        }
+        
+        function showOffline() {
+            document.getElementById('offlineSection').style.display = 'block';
+            document.getElementById('onlineSection').style.display = 'none';
+            document.getElementById('checkingMsg').innerHTML = '🔴 Radio is currently offline. Please check back during broadcast hours (Sunday 9-10 PM).';
+        }
+        
         // Start checking when page loads
-        checkRadioStatus();
+        // Try both methods for better reliability
+        setTimeout(() => {
+            if (!checkComplete) {
+                showOffline();
+            }
+        }, 6000);
+        
+        checkWithImage();
+        checkWithFetch();
     </script>
 </body>
 </html>
