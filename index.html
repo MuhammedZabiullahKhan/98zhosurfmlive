@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>98.Z Hosur FM</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 50px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: white;
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            max-width: 600px;
+            padding: 40px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+        }
+        h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            color: #ff6b6b;
+        }
+        .status-box {
+            font-size: 20px;
+            margin: 30px 0;
+            padding: 20px;
+            border-radius: 10px;
+        }
+        .offline {
+            background: rgba(255,107,107,0.2);
+            border: 1px solid #ff6b6b;
+        }
+        .online {
+            background: rgba(76, 175, 80, 0.2);
+            border: 1px solid #4CAF50;
+        }
+        .schedule {
+            font-size: 18px;
+            margin-top: 30px;
+            color: #ffd93d;
+        }
+        .footer {
+            margin-top: 40px;
+            font-size: 14px;
+            opacity: 0.7;
+        }
+        .button {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 12px 30px;
+            background: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: bold;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); background: #45a049; }
+            100% { transform: scale(1); }
+        }
+        .redirect-message {
+            margin-top: 20px;
+            font-size: 14px;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📻 98.Z HOSUR FM</h1>
+        
+        <!-- This div will show content based on status -->
+        <div id="statusContent">
+            <div class="status-box offline" id="offlineBox">
+                <strong>🔴 Hosur FM is Offline Now</strong><br><br>
+                Will be available on<br>
+                <strong style="font-size: 28px;">Sunday 09:00 PM to 10:00 PM</strong><br>
+                only.
+            </div>
+            <div class="redirect-message" id="redirectMsg">
+                ⏳ Checking broadcast status...
+            </div>
+        </div>
+        
+        <div class="schedule">
+            ⏰ Thank you for your support!<br>
+            Keep listening! 🎵
+        </div>
+        <div class="footer">
+            Developed by @zabi
+        </div>
+    </div>
+
+    <script>
+        // Your NPort link
+        const RADIO_URL = 'https://draws-programme-veterans-invisible.trycloudflare.com/listener/';
+        
+        // Function to check if the radio is online
+        async function checkRadioStatus() {
+            const offlineBox = document.getElementById('offlineBox');
+            const redirectMsg = document.getElementById('redirectMsg');
+            
+            try {
+                // Try to fetch the radio URL with a timeout
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+                
+                const response = await fetch(RADIO_URL, {
+                    method: 'HEAD', // Only get headers, not full page
+                    mode: 'no-cors', // Avoid CORS issues
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                // If we get here without error, the server is reachable
+                // Redirect to the radio page
+                redirectMsg.innerHTML = '✅ Broadcast is LIVE! Redirecting you now...';
+                setTimeout(() => {
+                    window.location.href = RADIO_URL;
+                }, 1000);
+                
+            } catch (error) {
+                // Server is offline - show offline message
+                offlineBox.style.display = 'block';
+                redirectMsg.innerHTML = '🔴 Radio is currently offline. Please check back during broadcast hours.';
+                console.log('Radio is offline:', error);
+            }
+        }
+        
+        // Start checking when page loads
+        checkRadioStatus();
+    </script>
+</body>
+</html>
